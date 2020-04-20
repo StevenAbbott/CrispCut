@@ -6,9 +6,57 @@ from PyQt5.QtWidgets import QApplication, QMainWindow
 WIDTH = 960
 HEIGHT = 540
 
-class VidEditor():
-    def __init__(self, inputImg):
-        self.img = inputImg
+class Scrubber(QtWidgets.QWidget):
+    def __init__(self, parent, video, parentLabel):
+        super(Scrubber, self).__init__()
+
+        self.parent = parent
+
+        self.label = parentLabel
+        self.label.setScaledContents(True)
+        self.setGeometry(0, 26, self.parent.width(), self.parent.height() - 75)
+
+        # Define the image to edit (even though it hasn't been specified yet)
+        self.vidCap = video
+        _, self.workingImg = self.vidCap.read()
+        self.changePixmap = self.updateImg()
+        self.timer = QtCore.QTimer(self)
+        self.timer.setInterval(1000 / self.vidCap.get(cv2.CAP_PROP_FPS))
+
+        print("wid " + str(self.vidCap.get(cv2.CAP_PROP_FRAME_WIDTH)))
+        print("hei " + str(self.vidCap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+
+    def initializeGeometry(self, parent):
+        
+
+
+    def updateImg(self):
+        color_swapped_image = cv2.cvtColor(self.workingImg, cv2.COLOR_BGR2RGB)
+        height, width, _ = color_swapped_image.shape
+        self.changePixmap = QtGui.QImage(color_swapped_image.data,
+                                    width,
+                                    height,
+                                    color_swapped_image.strides[0],
+                                    QtGui.QImage.Format_RGB888)
+        self.label.setPixmap(QtGui.QPixmap.fromImage(self.changePixmap))
+        
+    def playPause(self):
+        if self.timer is None:
+
+            self.timer.timeout.connect(lambda: self.advanceFrame())
+            self.timer.start()
+        elif self.timer.isActive():
+            self.timer.stop()
+        else:
+            self.timer.start()
+
+    def advanceFrame(self):
+        _, self.workingImg = self.vidCap.read()
+        if self.workingImg is None:
+            print("All done!")
+        else:
+            self.updateImg()
+
 
 class Window(QMainWindow):
 
@@ -21,8 +69,8 @@ class Window(QMainWindow):
         # Set up the label in the middle of the app
         self.label = QtWidgets.QLabel(self)
         self.label.setText("my fist label!")
-        self.label.move((WIDTH / 2) - 100, (HEIGHT / 2) - 50)
-        self.label.resize(200, 100)
+        self.label.move(0, 26)
+        self.label.resize(WIDTH, HEIGHT - 75)
 
         # Set up the individual actions that will go in the sub-menus
         # of the menu bar
@@ -44,14 +92,6 @@ class Window(QMainWindow):
         self.menuEdit = self.mainMenu.addMenu("Edit")
         self.menuEdit.addAction(self.cutAction)
 
-        # Define the image to edit (even though it hasn't been specified yet)
-        self.changePixmap = None
-        self.vidCap = None
-        self.workingImg = None
-
-        self.timer = None
-        self.isPlaying = False
-
         self.home()
 
     def clicked(self, text):
@@ -62,47 +102,18 @@ class Window(QMainWindow):
 
     def openFile(self):
         name = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File yee')[0]
-        self.vidCap = cv2.VideoCapture(name)
-        _, self.workingImg = self.vidCap.read()
-        self.updateImg()
-        self.label.setScaledContents(True)
-        self.label.setGeometry(0, 26, self.width(), self.height() - 75)
+        if name is "":
+            return
+        vidCap = cv2.VideoCapture(name)
+        scrub = Scrubber(self, vidCap, self.label)
+        scrub.setParent(self)
 
         self.playPauseAction = QtWidgets.QAction("Play/Pause", self)
         self.playPauseAction.setShortcut(" ")
         self.playPauseAction.setStatusTip("Toggle Play/Pause")
-        self.playPauseAction.triggered.connect(lambda: self.playPause())
+        self.playPauseAction.triggered.connect(lambda: scrub.playPause())
+
         self.menuEdit.addAction(self.playPauseAction)
-
-    def updateImg(self):
-        color_swapped_image = cv2.cvtColor(self.workingImg, cv2.COLOR_BGR2RGB)
-        height, width, _ = color_swapped_image.shape
-        self.changePixmap = QtGui.QImage(color_swapped_image.data,
-                                    width,
-                                    height,
-                                    color_swapped_image.strides[0],
-                                    QtGui.QImage.Format_RGB888)
-        self.label.setPixmap(QtGui.QPixmap.fromImage(self.changePixmap))
-        
-
-    def playPause(self):
-        if self.timer is None:
-            self.timer = QtCore.QTimer(self)
-            self.timer.setInterval(1000 / self.vidCap.get(cv2.CAP_PROP_FPS))
-            self.timer.timeout.connect(lambda: self.advanceFrame())
-            self.timer.start()
-        elif self.timer.isActive():
-            self.timer.stop()
-        else:
-            self.timer.start()
-
-    def advanceFrame(self):
-        _, self.workingImg = self.vidCap.read()
-        if self.workingImg is None:
-            print("All done!")
-        else:
-            self.updateImg()
-
     
     def resizeEvent(self, event):
         self.label.resize(self.width(), self.height() - 75)
