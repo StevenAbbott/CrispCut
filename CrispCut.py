@@ -22,12 +22,13 @@ class Scrubber(QtWidgets.QWidget):
         self.changePixmap = self.updateImg()
         self.timer = QtCore.QTimer(self)
         self.timer.setInterval(1000 / self.vidCap.get(cv2.CAP_PROP_FPS))
+        self.timer.timeout.connect(lambda: self.advanceFrame())
 
         print("wid " + str(self.vidCap.get(cv2.CAP_PROP_FRAME_WIDTH)))
         print("hei " + str(self.vidCap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
 
-    def initializeGeometry(self, parent):
-        
+    #def initializeGeometry(self, parent):
+
 
 
     def updateImg(self):
@@ -41,8 +42,8 @@ class Scrubber(QtWidgets.QWidget):
         self.label.setPixmap(QtGui.QPixmap.fromImage(self.changePixmap))
         
     def playPause(self):
+        print("here")
         if self.timer is None:
-
             self.timer.timeout.connect(lambda: self.advanceFrame())
             self.timer.start()
         elif self.timer.isActive():
@@ -65,6 +66,7 @@ class Window(QMainWindow):
         # Set up the window for the overall app
         self.setGeometry(50, 50, WIDTH, HEIGHT)
         self.setWindowTitle("CrispCut")
+        self.setWindowIcon(QtGui.QIcon("CrispCutToken.png"))
 
         # Set up the label in the middle of the app
         self.label = QtWidgets.QLabel(self)
